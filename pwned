@@ -17,7 +17,7 @@ my $MOTIVATION=
 ";
 
 Getopt::Long::Configure(qw(no_ignore_case));
-my ($VERSION,$AUTHOR,$NAME)=("1.1",'Alessandro Forghieri <alf@orion.it>',basename($0));
+my ($VERSION,$AUTHOR,$NAME)=("1.2",'Alessandro Forghieri <alf@orion.it>',basename($0));
 my $USAGE="USAGE:\n     $NAME [-d] [-v] [-l logfile] pwd1 pwd2 ...\n     $NAME [flags] < pwdfile";
 
 sub usage {
@@ -35,8 +35,8 @@ sub usage {
 	Checks passwords against the pwned database.
 
     EXAMPLES:
-        # pwned -q Alessandro || echo 'You've been pwned'
-        You've been pwned
+        # pwned -q Alessandro || echo 'You have been pwned'
+        You have been pwned
 
         # pwned qwerty
         Fri Jan 18 11:31:09 2019 - ERROR - pwned - 160 - main::unsafe - PWNED! qwerty has been pwned 3810555 times.
@@ -111,8 +111,18 @@ sub dN {
 
 
 use Digest::SHA1  qw(sha1_hex);
-use LWP;
+use LWP::UserAgent;
 use HTTP::Status;
+use IO::Socket::SSL qw();
+#
+# Required for running on CentOS6 (which otherwise returns: network unavailable)
+# See: 
+use Net::SSL (); # From Crypt-SSLeay
+eval {
+  # Force use of Net::SSL
+  no warnings;
+  $Net::HTTPS::SSL_SOCKET_CLASS = "Net::SSL"; 
+};
 ######################
 # OPTIONS#############
 ######################
@@ -140,7 +150,15 @@ if ( $logfile ) {
 sub unsafe  {
   my($pwd)=(@_);
   my $uas="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36";
-  my $ua=LWP::UserAgent->new();
+  my $ua=LWP::UserAgent->new(
+      ssl_opts => {
+	  SSL_verify_mode => IO::Socket::SSL::SSL_VERIFY_NONE,
+	  verify_hostname => 0,
+#            SSL_hostname => '',# Set SSL_hostname if you do want to verify the hostname
+                                # (ie, when using SNI 
+	                        # https://en.wikipedia.org/wiki/Server_Name_Indication)
+      }      
+      );
   $ua->agent($uas);
   my $hash=uc(sha1_hex($pwd));
   my($range,$rest)=(substr($hash,0,5),substr($hash,5));
@@ -182,3 +200,4 @@ if (@ARGV) {
   }
 }
 exit $failures;
+
