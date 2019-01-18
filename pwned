@@ -17,7 +17,7 @@ my $MOTIVATION=
 ";
 
 Getopt::Long::Configure(qw(no_ignore_case));
-my ($VERSION,$AUTHOR,$NAME)=("1.0",'Alessandro Forghieri <alf@orion.it>',basename($0));
+my ($VERSION,$AUTHOR,$NAME)=("1.1",'Alessandro Forghieri <alf@orion.it>',basename($0));
 my $USAGE="USAGE:\n     $NAME [-d] [-v] [-l logfile] pwd1 pwd2 ...\n     $NAME [flags] < pwdfile";
 
 sub usage {
@@ -153,7 +153,7 @@ sub unsafe  {
 	 $response->code,"\n",
 	 HTTP::Status::status_message($response->code),"\n",
 	 $response->headers_as_string,"\n",
-	 $response->error_as_string,"\n",
+	 $response->content,"\n",
 	);
     return;
   }
