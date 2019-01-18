@@ -1,0 +1,8 @@
+perl-Getopt-Long
+perl-PathTools
+perl-Digest-SHA1
+perl-libwww-perl
+perl-HTTP-Message
+perl-IO-Socket-SSL
+perl-Crypt-SSLeay
+perl-LWP-Protocol-https
