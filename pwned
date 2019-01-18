@@ -1,0 +1,181 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+#######################
+#Boilerplate begins   #
+#######################
+
+use Getopt::Long;
+Getopt::Long::Configure('no_ignore_case');
+use File::Basename;
+use Cwd;
+
+my $MOTIVATION=
+  "SYNOPSYS:
+       Verify that a password is not in the pwned database
+
+";
+
+Getopt::Long::Configure(qw(no_ignore_case));
+my ($VERSION,$AUTHOR,$NAME)=("1.0",'Alessandro Forghieri <alf@orion.it>',basename($0));
+my $USAGE="Usage: $NAME [-d] [-v] [-l logfile] pwd1 pwd2 ...\n$NAME [flags] < pwdfile";
+
+sub usage {
+  #pod2usage(1);
+  print STDERR <<EOF ;
+    $NAME $VERSION  - $AUTHOR
+    $MOTIVATION
+    $USAGE
+	echo
+	        -d   debug (repeat for ( increased verbosity)
+                -v   verbose
+                -l   logfile
+                -q   be very quiet
+   
+	Checks passwords against the pwned database.
+
+    EXAMPLES:
+        # pwned -q Alessandro || echo 'You've been pwned'
+        You've been pwned
+
+        # pwned qwerty
+        Fri Jan 18 11:31:09 2019 - ERROR - pwned - 160 - main::unsafe - PWNED! qwerty has been pwned 3810555 times.
+
+        # pwned quarantaquattrogattiinfilaperseicolresto di due
+        Fri Jan 18 11:33:57 2019 - INFO - pwned - 160 - main::unsafe - NOT PWNED! quarantaquattrogattiinfilaperseicolresto does not appear in the pwned database
+        Fri Jan 18 11:33:57 2019 - ERROR - pwned - 160 - main::unsafe - PWNED! di has been pwned 2250 times.
+        Fri Jan 18 11:33:57 2019 - ERROR - pwned - 160 - main::unsafe - PWNED! due has been pwned 605 times.
+
+        See also:
+        https://haveibeenpwned.com/Passwords   
+EOF
+    exit 1;
+}
+
+open(LOGFILE,   ">&2") or die "DUP'ing STDERR: $!";
+
+my ($DEBUG,$opt_v,$opt_h,$opt_q,$logfile)=(0,0,0,0,'');
+##############
+# Procedures#
+#############
+sub info {
+  return unless ($DEBUG || $opt_v);
+  my (@ctx)=(caller(1));
+  unless (@ctx) {@ctx = caller(0); $ctx[3]='main'; }
+  print LOGFILE scalar(localtime())," - INFO - $NAME - $ctx[2] - $ctx[3] - ", @_,"\n";
+}
+
+sub err {
+  my (@ctx) = (caller(1));
+  unless (@ctx) {@ctx = caller(0); $ctx[3]='main'; }
+  print LOGFILE scalar(localtime())," - ERROR - $NAME - $ctx[2] - $ctx[3] - ", @_,"\n";
+}
+
+sub warning {
+  my @ctx = caller(1);
+  unless (@ctx) {@ctx = caller(0); $ctx[3]='main'; }
+  print LOGFILE scalar(localtime())," - WARNING - $NAME - $ctx[2] - $ctx[3] - ", @_,"\n";
+}
+
+sub crit {
+  my (@ctx) = (caller(1));
+  unless (@ctx) {@ctx = caller(0); $ctx[3]='main'; }
+  print LOGFILE scalar(localtime())," - FATAL - $NAME - $ctx[2] - $ctx[3] - ", @_,"\n";
+}
+
+sub d0 {
+  return unless $DEBUG;
+  my (@ctx) = (caller(1));
+  unless (@ctx) {@ctx = caller(0); $ctx[3]='main'; }
+  print LOGFILE scalar(localtime())," - DEBUG[$DEBUG] - $NAME - $ctx[2] - $ctx[3] - ", @_,"\n";
+
+}
+
+sub d2 {
+  return unless ($DEBUG> 2);
+  my (@ctx) = (caller(1));
+  unless (@ctx) {@ctx = caller(0); $ctx[3]='main'; }
+  print LOGFILE scalar(localtime())," - DEBUG[$DEBUG] - $NAME - $ctx[2] - $ctx[3] - ", @_,"\n";
+}
+
+sub dN {
+  my($level,@rest)=(@_);
+  return unless ($DEBUG>=$level);
+  my (@ctx) = (caller(1));
+  unless (@ctx) {@ctx = caller(0); $ctx[3]='main'; }
+  print LOGFILE scalar(localtime())," - DEBUG[$DEBUG] - $NAME - $ctx[2] - $ctx[3] - ", @rest,"\n";
+}
+
+
+use Digest::SHA1  qw(sha1_hex);
+use LWP;
+use HTTP::Status;
+######################
+# OPTIONS#############
+######################
+GetOptions(
+	   "d|debug+"    =>\$DEBUG,
+	   "h|help"      =>\$opt_h,
+	   "v|verbose"   =>\$opt_v,
+	   "q|quiet"     =>\$opt_q,
+	   "l|logfile=s" =>\$logfile,
+	  ) or usage();
+usage() if $opt_h;
+
+#######################
+#logger configuration #
+#######################
+if ( $logfile ) {
+  open(LOGFILE, ">>$logfile") or die("Opening $logfile: $!");
+  print LOGFILE "-"x20,scalar(localtime()),'-'x20,"\n";
+}
+
+#######################
+#Boilerplate ends     #
+#######################
+
+sub unsafe  {
+  my($pwd)=(@_);
+  my $uas="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36";
+  my $ua=LWP::UserAgent->new();
+  $ua->agent($uas);
+  my $hash=uc(sha1_hex($pwd));
+  my($range,$rest)=(substr($hash,0,5),substr($hash,5));
+  my $path =  "https://api.pwnedpasswords.com/range/$range";
+  my $request = new HTTP::Request("GET", $path);
+  my $response = $ua->request($request);
+  if ($response->is_error()) {
+    crit(
+	 "FATAL on $pwd\n",
+	 $response->code,"\n",
+	 HTTP::Status::status_message($response->code),"\n",
+	 $response->headers_as_string,"\n",
+	 $response->error_as_string,"\n",
+	);
+    return;
+  }
+  foreach my $partial (split("\r\n",$response->content())) {
+    my($index,$occurences) = split(':',$partial);
+    if ($rest eq $index) {
+       err("PWNED! $pwd has been pwned $occurences times.") unless $opt_q;
+      return 1;
+    }
+  }
+  info("NOT PWNED! $pwd does not appear in the pwned database") if $opt_v;
+  0;
+}
+
+
+my $failures=0;
+
+if (@ARGV) {
+  foreach my $pwd (@ARGV) {
+    unsafe($pwd) && $failures++;
+  }
+} else {
+  while (<>) {
+    chomp;
+    unsafe($_) && $failures++;
+  }
+}
+exit $failures;
