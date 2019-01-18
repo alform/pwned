@@ -1,7 +1,7 @@
 # pwned
 Interact with the pwned database
 
-    pwned 1.0  - Alessandro Forghieri <alf@orion.it>
+    pwned 1.2  - Alessandro Forghieri <alf@orion.it>
     SYNOPSYS:
        Verify that a password is not in the pwned database
 
