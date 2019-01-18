@@ -18,7 +18,7 @@ my $MOTIVATION=
 
 Getopt::Long::Configure(qw(no_ignore_case));
 my ($VERSION,$AUTHOR,$NAME)=("1.0",'Alessandro Forghieri <alf@orion.it>',basename($0));
-my $USAGE="Usage: $NAME [-d] [-v] [-l logfile] pwd1 pwd2 ...\n$NAME [flags] < pwdfile";
+my $USAGE="USAGE:\n     $NAME [-d] [-v] [-l logfile] pwd1 pwd2 ...\n     $NAME [flags] < pwdfile";
 
 sub usage {
   #pod2usage(1);
@@ -26,7 +26,7 @@ sub usage {
     $NAME $VERSION  - $AUTHOR
     $MOTIVATION
     $USAGE
-	echo
+	
 	        -d   debug (repeat for ( increased verbosity)
                 -v   verbose
                 -l   logfile
@@ -45,6 +45,9 @@ sub usage {
         Fri Jan 18 11:33:57 2019 - INFO - pwned - 160 - main::unsafe - NOT PWNED! quarantaquattrogattiinfilaperseicolresto does not appear in the pwned database
         Fri Jan 18 11:33:57 2019 - ERROR - pwned - 160 - main::unsafe - PWNED! di has been pwned 2250 times.
         Fri Jan 18 11:33:57 2019 - ERROR - pwned - 160 - main::unsafe - PWNED! due has been pwned 605 times.
+
+        # pwned < pwdlist
+        ...
 
         See also:
         https://haveibeenpwned.com/Passwords   
